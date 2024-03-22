@@ -3,54 +3,57 @@
     <v-main>
 
       <div id="top-bar" class="container">
-
         <h1>Repository Factory Application</h1>
+      </div>
 
-        <div id="test" class="container" style="width: 720px;">
+      <LoginComponent v-if="token == ''" :type="loginType" :credentials="credentials" @register="register" @peer="citroen">
+      </LoginComponent>
 
-          <div id="test-test" style="display: flex; flex-direction: row;">
+      <div v-if="token != ''" id="test" class="container" style="width: 720px;">
 
-            <v-select style="flex-basis: 20%;" v-model="selectedApi" :items="dataApis" item-title="name"
-              item-value="name" label="API" hide-details="auto" variant="outlined" class="select"></v-select>
+        <div id="test-test" style="display: flex; flex-direction: row;">
 
-            <v-select v-model="selectedParameter" style="flex-basis: 60%;" :items="kadasterParameters" item-title="name"
-              item-value="name" label="Parameter" hide-details="auto" variant="outlined" class="select"></v-select>
+          <v-select style="flex-basis: 20%;" v-model="selectedApi" :items="dataApis" item-title="name" item-value="name"
+            label="API" hide-details="auto" variant="outlined" class="select"></v-select>
 
-            <v-btn style="flex-basis: 20%; margin:10px 10px 0 0; height:56px" variant="outlined" @click="addParameter">
-              Click Me!
-            </v-btn>
+          <v-select v-model="selectedParameter" style="flex-basis: 60%;" :items="kadasterParameters" item-title="name"
+            item-value="name" label="Parameter" hide-details="auto" variant="outlined" class="select"></v-select>
 
-          </div>
-
-          <div id="input-container">
-
-            <div v-for="(p, index) in parameters">
-
-              <v-text-field v-model="parameters[index]" :label="index" variant="outlined"
-                class="text-field"></v-text-field>
-
-            </div>
-
-          </div>
-
-          <div class="container">
-
-            <p>{{ parameters }}</p>
-
-          </div>
-
-          <v-btn :loading="loading" variant="outlined" @click="fetch">
+          <v-btn style="flex-basis: 20%; margin:10px 10px 0 0; height:56px" variant="outlined" @click="addParameter">
             Click Me!
-            <template v-slot:loader>
-              <v-progress-linear indeterminate></v-progress-linear>
-            </template>
           </v-btn>
 
         </div>
 
+        <div id="input-container">
+
+          <div v-for="(p, index) in parameters">
+
+            <v-text-field v-model="parameters[index]" :label="index" variant="outlined"
+              class="text-field"></v-text-field>
+
+          </div>
+
+        </div>
+
+        <div class="container">
+
+          <p>{{ parameters }}</p>
+
+        </div>
+
+        <v-btn :loading="loading" variant="outlined" @click="fetch">
+          Click Me!
+          <template v-slot:loader>
+            <v-progress-linear indeterminate></v-progress-linear>
+          </template>
+        </v-btn>
+
         <DataComponent :data="data"></DataComponent>
 
       </div>
+
+      <!-- </div> -->
 
     </v-main>
 
@@ -59,10 +62,11 @@
 
 <script>
 
-import { toRaw } from 'vue';
 import DataComponent from './components/DataComponent.vue';
+import LoginComponent from './components/LoginComponent.vue';
 import { RepositoryFactory } from './factories/RepositoryFactory';
 
+const UserRepository = RepositoryFactory.get('user');
 const KadasterRepository = RepositoryFactory.get('kadaster');
 const KvkRepository = RepositoryFactory.get('kvk');
 const RdwRepository = RepositoryFactory.get('rdw');
@@ -70,11 +74,29 @@ const RdwRepository = RepositoryFactory.get('rdw');
 export default {
   data() {
     return {
+      loginType: 'Login',
+      credentials:
+      {
+        "Email": '',
+        "Password": ''
+      },
+      loginData:
+      {
+        "Email": '',
+        "Password": ''
+      },
+      registerData: {
+        "name": '',
+        "email": '',
+        "password": '',
+        "confirm password": ''
+      },
+      token: '',
       loading: false,
       message: '',
       selectedApi: 'KvK',
       selectedParameter: 'postcode',
-      repository: KvkRepository,
+      repository: UserRepository,
       dataApis: [
         { name: 'Kadaster' },
         { name: 'KvK' },
@@ -90,50 +112,43 @@ export default {
 
       },
       params: {
-        'postcode': '5962AG',
-        'huisnummer': 10
+        postcode: '5962AG'
       },
     }
   },
-  computed: {
-    //   query: {
-    //     get() {
-    //       var params = '?';
-
-    //       for (var count = 0; count < this.parameters.length; count++) {
-
-    //         if (this.parameters[count].value != "") {
-
-    //           params = `${params}${this.parameters[count].name}=${this.parameters[count].value}&`;
-    //         }
-    //       }
-
-    //       params = params.substring(0, params.length - 1);
-    //       return `${params}`.toLowerCase();
-    //     }
-    //   },
-    //   axiosParms() {
-    //     const axiosP = new URLSearchParams();
-
-    //     for (var count = 0; count < this.parameters.length; count++) {
-    //       axiosP.append(this.parameters[count].name, this.parameters[count].value);
-    //     }
-
-    //     return axiosP;
-    //   }
-  },
   methods: {
+    citroen() {
 
-    async fetch() {
+      if (this.loginType == "Login") {
+        this.loginType = "Register";
+      } else {
+        this.loginType = "Login";
+      }
+    },
+    async register() {
 
-      this.loading = true;
-      await this.repository.postTest(this.parameters)
+      await UserRepository.register(this.credentials)
         .then(response => {
           console.log(response);
           this.data = response.data;
         })
         .catch(error => {
           console.log(error);
+        }).finally(response => {
+          this.loading = false;
+        });
+    },
+    async fetch() {
+
+      this.loading = true;
+
+      await this.repository.postTest(this.parameters)
+        .then(response => {
+          console.log(response);
+          this.data = response.data;
+        })
+        .catch(error => {
+          console.log(error.response.status);
         }).finally(response => {
           this.loading = false;
         });
@@ -162,6 +177,13 @@ export default {
           this.repository = RdwRepository;
           break;
       }
+    },
+    loginType() {
+      if (this.loginType == "Login") {
+        this.credentials = this.loginData;
+      } else {
+        this.credentials = this.registerData;
+      }
     }
   }
 }
@@ -170,6 +192,11 @@ export default {
 </script>
 
 <style>
+.v-main {
+  background: rgb(2, 0, 36);
+  background: linear-gradient(208deg, rgba(2, 0, 36, 1) 0%, rgba(38, 38, 84, 1) 35%, rgba(0, 212, 255, 1) 100%);
+}
+
 #top-bar {
   height: auto;
 }
@@ -204,5 +231,10 @@ export default {
 .text-field {
   width: calc(100% - 20px);
   margin: 0 10px;
+}
+
+.element {
+  width: calc(100% - 20px);
+  margin: 15px 10px;
 }
 </style>
